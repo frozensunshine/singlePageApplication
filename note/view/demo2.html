@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>js mvc demo</title>
+		<link rel="stylesheet" href="../css/bootstrap.css" type="text/css" />
+		<link rel="stylesheet" href="../fontAwesome/css/font-awesome.css" />
+		<link rel="stylesheet" href="../css/style.css" />
+	</head>
+	<body>
+		<div id="root"></div>	
+	</body>
+		<script type="text/javascript" src="../js/jquery.js"></script>
+		<script type="text/javascript" src="../js/underscore.js"></script>
+		<script type="text/javascript" src="../js/backbone.js"></script>
+		<script type="text/javascript" src="../layer/layer.js"></script>
+		<!--MynoteView-->
+		<script type="text/template" id="temp">
+			<div class="container">
+				<div class="list">
+					<div class="list-group JS-wrap ">
+						<h4 class="list-group-item-heading note">MyNote <i class="fa fa-plus JS-publish"></i></h4>
+						<div class="tagList JS-todo-list"></div>
+						<div class="tagPanel JS-todo-panel"></div>
+						
+					</div>
+				</div>	
+			</div>		
+		</script>
+		<!--当增加内容之后，在左侧显示的面板-->
+		<script type="text/template" id="item">
+			<div class="list-group-item">
+			    	<div class="list-group-item-text ">
+			    		<h3 class="title JS-List-titile"><%=txt%></h3>
+			    		<div class="multiLineText JS-List-detail"><%=detail%></div>	
+			    	</div>
+					<div class="delete"><i class="fa fa-trash-o JS-delete"></i></div>					   	
+				</div>
+				
+		</script>
+		
+		
+		
+		<!--sessionStorageView 当刷新页面的时候默认显示的左侧面板-->
+		<script type="text/template" id="session">
+			<% for(var i=0;i<list.length;i++){ %>
+				<div class="list-group-item">
+				    	<div class="list-group-item-text ">
+				    		<h3 class="title JS-List-titile" data-set='<%=list[i]["attributes"].id%>'><%=list[i]["attributes"].txt%></h3>
+				    		<div class="multiLineText JS-List-detail"><%=list[i]["attributes"].detail%></div>	
+				    	</div>
+						<div class="delete"><i class="fa fa-trash-o JS-delete" data-id='<%=list[i]["attributes"].id%>'><span></span></i></div>
+						
+					</div>
+			<% } %>
+				<div class="editArticle JS-editArticle" >
+					
+				</div>		
+		</script>
+		
+		<script type="text/template" id="editPanel">
+			
+			<section class="pageItem JS-save-panel">
+				<h3 class="pageTitle" ><input type="text" class="title JS-edit-input" maxlength="30" value='<%=txt%>' /><i class="fa fa-save JS-edit"></i></h3>
+				<p>
+					<textarea class="detail JS-edit-textarea"><%=detail%></textarea>
+				</p>
+			</section>
+		</script>
+		
+		<script type="text/template" id="savePanel">
+			
+			<section class="pageItem JS-save-panel">
+				<h3 class="pageTitle" ><input type="text"  maxlength="30" class="title JS-save-input" placeholder="请输入文章标题" /><i class="fa fa-save JS-save"></i></h3>
+				<p>
+					<textarea class="detail JS-save-textarea"  placeholder="请输入文章内容"></textarea>
+				</p>
+			</section>
+			<div class="addPart JS-addPart"></div>
+			
+		</script>
+		
+		<script>
+			window.Note = Backbone.Model.extend({
+					defaults:{
+						txt:'',
+						detail:'',
+						id:''
+					},
+					initialize:function(){
+				       // console.log('Model initialized!');  
+				    },
+				    remove:function(){
+				        this.destroy();  
+				    }  
+				});
+			window.NoteList = Backbone.Collection.extend({
+				model:Note
+			});
+			
+			var Item = Backbone.View.extend({
+				template:_.template($('#item').html()),
+				initialize:function(options){
+					this.model = options.model,
+					this.parent = options.parent;
+					this.list = options.list;
+					this.render();
+					this.initEvent();
+				},
+				render:function(){
+					var data = this.model.toJSON();
+					this.$el.html(this.template(data));
+					this.$ListTitile = this.$el.find(".JS-List-titile");
+					this.$ListDeatil = this.$el.find(".JS-List-detail");
+					this.$ListDelete = this.$el.find(".JS-delete");
+				},
+				initEvent:function(){
+					var that  = this;
+					this.$ListDelete.on('click',function(){
+						var id = that.model.get("id");
+						that.list.remove(id);
+					})
+				},
+				destroy:function(){
+					this.$el.remove();
+				}
+			})
+			var saveArticleView = Backbone.View.extend({
+				template:_.template($("#savePanel").html()),
+				initialize:function(){
+					this.render();
+					this.initEvent();
+				},
+				render:function(){
+					this.$el.html(this.template());
+					this.$inputSave = this.$el.find(".JS-save-input");
+					this.$textareaSave = this.$el.find(".JS-save-textarea");
+					this.$add = this.$el.find(".JS-save");
+					this.$addPart = this.$el.find(".JS-addPart");
+					this.list = new NoteList();
+					this.ids=sessionStorage.getItem("articleId")==null?0:parseInt(sessionStorage.getItem("articleId"));
+					this.ids++;
+					this.itemViews=[];
+				},
+				initEvent:function(){
+					var that = this;
+					this.$el.on('click','.JS-save',function(){
+						var txt = that.$inputSave.val();
+						var detail = that.$textareaSave.val();
+						var value=  {
+								txt:txt,
+								detail:detail,
+								id:that.ids
+						}
+						layer.msg('增加文章么', {
+							  time: 0,
+							  btn: ['确定', '取消'],
+							  yes: function(index){
+							    layer.close(index);
+							   sessionStorage.setItem("note"+"-"+that.ids+"/"+new Date().getTime(),JSON.stringify(value));
+								sessionStorage.setItem("articleId",that.ids);
+								var newValue = JSON.parse(sessionStorage.getItem("note"+"-"+that.ids+"/"+new Date().getTime()));
+								that.ids++;
+								that.list.add(newValue);
+							  }
+						});
+						
+						
+					});
+					
+					this.list.on('add',function(model,collection,options){
+						var item = new Item({
+							model:model,
+							parent:that,
+							list:that.list
+						});
+						that.$addPart.append(item.$el);
+						that.itemViews.push(item);
+						
+					})
+					this.list.on('remove',function(model,collection,options){
+						that.itemViews.filter(function(view){
+							return view.model.get('id')!=model.get("id")
+						});
+						
+						var view = _.find(that.itemViews,function(view){
+							return view.model.get('id')==model.get("id");
+						})
+						var num=model.get("id");
+						layer.msg('你确定删除么', {
+								  time: 0,
+								  btn: ['确定', '取消'],
+								  yes: function(index){
+								    layer.close(index);
+								    for(var i=0;i<sessionStorage.length;i++){
+									 	var key = sessionStorage.key(i);
+									 	if(JSON.parse(sessionStorage.getItem(key)).id==num){
+									 		sessionStorage.removeItem(key);
+									 		that.ids=sessionStorage.getItem("articleId")*1;
+									 		that.ids--;
+									 		sessionStorage.setItem("articleId",that.ids);
+									 		break;
+									 	}
+									 }
+								  	 view.destroy();
+								  }
+						});		 
+						
+					})
+					
+				}
+			});
+			var todo = Backbone.View.extend({
+				template:_.template($('#temp').html()),
+				initialize:function(){
+					this.render();
+					this.initEvent();
+					
+				},
+				render:function(){
+					this.$el.html(this.template);
+					this.$publish = this.$el.find(".JS-publish");
+					this.$panelWrap = this.$el.find(".JS-todo-panel");
+					this.$list = this.$el.find(".JS-todo-list");
+				},
+				initEvent:function(){
+					var that = this;
+					this.$el.one("click",'.JS-publish',function(){
+						var saveArticle = new saveArticleView();
+						that.$panelWrap.append(saveArticle.$el);
+					})
+				}
+			})
+			var editArticleView = Backbone.View.extend({
+				initialize:function(options){
+					
+					this.model = options.model,
+					this.parent = options.parent;
+					this.list = options.list;
+					this.render();
+					this.initEvent();
+					
+				},
+				render:function(){
+					var template = _.template($("#editPanel").html());
+					this.$el.html(template(this.model.toJSON()));
+					this.$inputSave = this.$el.find(".JS-edit-input");
+					this.$textareaSave = this.$el.find(".JS-edit-textarea");
+					this.$edit = this.$el.find(".JS-edit");
+					
+				},
+				initEvent:function(){
+					var that = this;
+					this.$el.on("click",".JS-edit",function(e){
+						var txt = that.$inputSave.val();
+						var detail = that.$textareaSave.val();
+						var num= that.model.get("id");
+						var djson = {
+							txt:txt,
+							detail:detail,
+							id:num
+						}
+						
+						
+						for(var i=0;i<sessionStorage.length;i++){
+						 	var key = sessionStorage.key(i);
+						 	if(key!="articleId"&&JSON.parse(sessionStorage.getItem(key)).id==num){
+						 		layer.msg('确定修改数据么', {
+								  time: 0,
+								  btn: ['确定', '取消'],
+								  yes: function(index){
+								    layer.close(index);
+								  	that.model.set("txt",txt);
+								  	that.model.set("detail",detail);
+								  	sessionStorage.setItem(key,JSON.stringify(djson));
+								  }
+							});
+						 		break;
+						 	}
+						 }
+						
+					})
+					this.model.on('change',function(){
+						that.render();
+					})
+				}
+			});
+			
+			var sessionStorageView = Backbone.View.extend({
+				initialize:function(){
+					this.render();
+					this.initEvent();
+					
+				},
+				render:function(){
+					 var template = _.template($("#session").html());
+					this.$editArticle = this.$el.find(".JS-editArticle");
+					this.editList = new NoteList();
+					this.editViews=[];
+					this.editIds=1;
+					var dataArr = this.getSessionStorage();
+					var data = {list:dataArr.models};
+           			var html = template(data);
+           			this.$el.html(html);
+				},
+				initEvent:function(){
+					var that = this;
+					this.$el.on("click",'.JS-delete',function(e){
+						var _this = this;
+						var num = e.currentTarget.getAttribute("data-id");
+							
+							for(var i=0;i<sessionStorage.length;i++){
+						 	var key = sessionStorage.key(i);
+						 	
+						 	if(key!="articleId"&&JSON.parse(sessionStorage.getItem(key)).id==num){
+						 		layer.msg('你确定删除么？', {
+									  time: 0,
+									  btn: ['删除', '取消'],
+									  yes: function(index){
+									    layer.close(index);							  
+									 	 $(_this).closest(".list-group-item").html('');
+									  	sessionStorage.removeItem(key)
+									  	this.editIds=sessionStorage.getItem("articleId")*1;
+									 	this.editIds--;
+									 	sessionStorage.setItem("articleId",this.editIds);
+									  }
+								});
+						 		break;
+						 	}
+						 }
+					})
+					this.$el.on("click",'.JS-List-titile',function(){
+						var text = $(this).text();
+						var detail = $(this).next().text();
+						that.editIds=$(this).attr("data-set");
+						that.editList.add({
+							txt:text,
+							detail:detail,
+							id:that.editIds
+						});
+						that.editIds++;
+						
+					})
+					this.editList.on('add',function(model){
+						
+						var eidtItem = new editArticleView({
+							model:model,
+							parent:that,
+							list:model.editList
+						});
+						that.$el.find(".JS-editArticle").append(eidtItem.$el);
+					})
+					
+				},
+				getSessionStorage:function(){
+					this.list = new NoteList();
+					for(var i=0;i<sessionStorage.length;i++){
+					 	var key = sessionStorage.key(i);
+					 	if(key!="articleId"){
+					 		var value = sessionStorage.getItem(key);
+					 		this.list.add(JSON.parse(value));	
+					 	}
+					 	
+					 }
+					return this.list;
+					
+				}
+			})
+			
+			var app = Backbone.View.extend({
+				el:$("#root"),
+				initialize:function(){
+					this.render();
+					this.initEvent();
+				},
+				render:function(){
+					this.todo = new todo();
+					this.$el.append(this.todo.$el);
+					this.StorageView = new sessionStorageView();
+					this.$el.find(".JS-todo-list").append(this.StorageView.$el);
+				},
+				initEvent:function(){
+					
+				}
+				
+			});
+			new app();
+			
+		</script>
+</html>

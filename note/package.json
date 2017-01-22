@@ -1,0 +1,22 @@
+{
+  "name": "webpack-demo",
+  "version": "1.0.0",
+  "dependencies": {},
+  "devDependencies": {
+    "webpack": "^1.14.0"
+  },
+  "description": "A simple webpack example",
+  "main": "bundle.js",
+  "scripts": {
+    "test": "1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "1"
+  },
+  "keywords": [
+    "webpack"
+  ],
+  "author": "wangshicheng",
+  "license": "MIT"
+}
